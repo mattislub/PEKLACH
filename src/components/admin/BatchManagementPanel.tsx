@@ -3,7 +3,7 @@ import { Clock, AlertTriangle, Plus, Package, Calendar, Trash2, Edit, FileText }
 import { Product, ProductBatch, BatchTransaction } from '../../types';
 import { ProductBatchModal } from './ProductBatchModal';
 import { BatchTransactionModal } from './BatchTransactionModal';
-import { fetchProductBatches, fetchBatchTransactions } from '../../utils/supabaseClient';
+import { fetchProductBatches, fetchBatchTransactions } from '../../utils/localDb';
 
 interface BatchManagementPanelProps {
   product: Product;

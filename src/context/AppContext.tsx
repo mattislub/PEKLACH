@@ -37,7 +37,7 @@ import {
   fetchBatchTransactions,
   saveBatchTransaction,
   fetchExpiringProducts
-} from '../utils/supabaseClient';
+} from '../utils/localDb';
 
 interface AppState {
   products: Product[];
@@ -1069,7 +1069,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     requestNotificationPermission();
   }, []);
   
-  // Load data from Supabase on initial render
+  // Load data from local storage on initial render
   useEffect(() => {
     const loadData = async () => {
       if (state.dataInitialized) return;
@@ -1116,7 +1116,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           }
         });
       } catch (error) {
-        console.error('Error loading data from Supabase:', error);
+        console.error('Error loading data:', error);
         
         // If there's an error, use initial state data
         dispatch({ 
