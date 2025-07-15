@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Calendar, AlertCircle, Plus, Minus, Trash2, Save, Package } from 'lucide-react';
 import { Product, ProductBatch } from '../../types';
-import { saveProductBatch, deleteProductBatch } from '../../utils/supabaseClient';
+import { saveProductBatch, deleteProductBatch } from '../../utils/localDb';
 import { v4 as uuidv4 } from 'uuid';
 
 interface ProductBatchModalProps {

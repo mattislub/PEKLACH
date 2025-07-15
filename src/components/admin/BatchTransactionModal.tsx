@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, FileText } from 'lucide-react';
 import { ProductBatch, BatchTransaction } from '../../types';
-import { saveBatchTransaction } from '../../utils/supabaseClient';
+import { saveBatchTransaction } from '../../utils/localDb';
 import { v4 as uuidv4 } from 'uuid';
 
 interface BatchTransactionModalProps {

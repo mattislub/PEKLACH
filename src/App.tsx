@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider } from './context/AppContext';
 import { AuthProvider } from './context/AuthContext';
@@ -6,7 +6,7 @@ import { Navigation } from './components/Navigation';
 import { AdminNavigation } from './components/AdminNavigation';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AdminRoute } from './components/AdminRoute';
-import { supabase } from './utils/supabaseClient';
+
 
 // New Pages
 import { AboutUs } from './pages/AboutUs';
@@ -49,49 +49,11 @@ import { CustomerOrderDetails } from './pages/customer/CustomerOrderDetails';
 import { CustomerSettings } from './pages/customer/CustomerSettings';
 
 function App() {
-  const [supabaseConnected, setSupabaseConnected] = useState(false);
-  
-  // Check if Supabase is connected
-  useEffect(() => {
-    const checkSupabaseConnection = async () => {
-      try {
-        // Check if environment variables are set
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-        const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-        
-        if (!supabaseUrl || !supabaseAnonKey) {
-          setSupabaseConnected(false);
-          return;
-        }
-        
-        const { data, error } = await supabase.from('products').select('count', { count: 'exact', head: true });
-        if (error) {
-          console.warn('Supabase connection error:', error);
-          setSupabaseConnected(false);
-        } else {
-          setSupabaseConnected(true);
-        }
-      } catch (error) {
-        console.warn('Error checking Supabase connection:', error);
-        setSupabaseConnected(false);
-      }
-    };
-    
-    checkSupabaseConnection();
-  }, []);
   
   return (
     <AuthProvider>
       <AppProvider>
         <Router>
-          {!supabaseConnected && (
-            <div className="fixed top-0 left-0 right-0 bg-amber-500 text-white p-2 text-center z-50">
-              <p className="text-sm">
-                Database not connected. Some features may not work properly. 
-                Please click the "Connect to Supabase" button in the top right corner.
-              </p>
-            </div>
-          )}
           
           <Routes>
             {/* Admin Routes */}

@@ -3,7 +3,7 @@ import { Package, ShoppingCart, TrendingUp, AlertTriangle, Users, DollarSign, Do
 import { useApp } from '../../context/AppContext';
 import { exportToCSV, exportToExcel } from '../../utils/exportUtils';
 import { exportDashboardToPDF } from '../../utils/pdfUtils';
-import { fetchExpiringProducts } from '../../utils/supabaseClient';
+import { fetchExpiringProducts } from '../../utils/localDb';
 
 export function AdminDashboard() {
   const { state } = useApp();

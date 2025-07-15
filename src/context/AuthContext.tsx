@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useReducer, ReactNode, useEffect } from 'react';
 import Cookies from 'js-cookie';
 import { User, AuthState } from '../types';
-import { supabase, signUp, signIn, signOut, getCurrentUser, resetPassword } from '../utils/supabaseClient';
+import { signUp, signIn, signOut, getCurrentUser } from '../utils/localDb';
 
 // Define action types
 type AuthAction =
@@ -152,29 +152,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }
         }
 
-        // Then check Supabase auth
         const user = await getCurrentUser();
-        
+
         if (user) {
-          // Get user metadata from Supabase
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', user.id)
-            .single();
-            
-          const userData: User = {
-            id: user.id,
-            email: user.email || '',
-            name: profile?.name || user.user_metadata?.name || 'User',
-            role: profile?.role || user.user_metadata?.role || 'customer',
-            phone: profile?.phone || user.user_metadata?.phone,
-            address: profile?.address || user.user_metadata?.address,
-            createdAt: user.created_at || new Date().toISOString(),
-            lastLogin: new Date().toISOString()
-          };
-          
-          dispatch({ type: 'LOGIN_SUCCESS', payload: userData });
+          const { password: _pwd, ...userWithoutPassword } = user as any;
+          dispatch({ type: 'LOGIN_SUCCESS', payload: userWithoutPassword });
         }
       } catch (error) {
         console.error('Error checking authentication:', error);
@@ -192,82 +174,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     dispatch({ type: 'LOGIN_START' });
     
     try {
-      // First try mock authentication for demo purposes
       const mockUsers = JSON.parse(localStorage.getItem('users') || '[]');
-      const user = mockUsers.find((u: any) => 
-        u.email === email && 
-        u.password === password && 
+      const user = mockUsers.find((u: any) =>
+        u.email === email &&
+        u.password === password &&
         u.role === 'customer'
       );
-      
+
       if (user) {
-        // Create user object without password
-        const { password: _, ...userWithoutPassword } = user;
-        
-        // Update last login
+        const { password: _pwd, ...userWithoutPassword } = user;
         userWithoutPassword.lastLogin = new Date().toISOString();
-        
-        // Update user in mock database
-        const updatedUsers = mockUsers.map((u: any) => 
+        const updatedUsers = mockUsers.map((u: any) =>
           u.id === user.id ? { ...u, lastLogin: userWithoutPassword.lastLogin } : u
         );
         localStorage.setItem('users', JSON.stringify(updatedUsers));
-        
-        // Set cookies
+
         Cookies.set('user', JSON.stringify(userWithoutPassword), { expires: 7 });
         Cookies.set('auth_token', `mock-token-${Date.now()}`, { expires: 7 });
-        
+
         dispatch({ type: 'LOGIN_SUCCESS', payload: userWithoutPassword });
         return;
       }
 
-      // If mock auth fails, try Supabase
-      try {
-        const { user: supabaseUser } = await signIn(email, password);
-        
-        if (!supabaseUser) {
-          throw new Error('Invalid email or password');
-        }
-        
-        // Get user profile from Supabase
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', supabaseUser.id)
-          .single();
-        
-        // Check if user is a customer
-        if (profile?.role !== 'customer' && supabaseUser.user_metadata?.role !== 'customer') {
-          throw new Error('This account is not a customer account. Please use the admin login.');
-        }
-        
-        const userData: User = {
-          id: supabaseUser.id,
-          email: supabaseUser.email || '',
-          name: profile?.name || supabaseUser.user_metadata?.name || 'User',
-          role: 'customer',
-          phone: profile?.phone || supabaseUser.user_metadata?.phone,
-          address: profile?.address || supabaseUser.user_metadata?.address,
-          createdAt: supabaseUser.created_at || new Date().toISOString(),
-          lastLogin: new Date().toISOString()
-        };
-        
-        // Update last login
-        await supabase
-          .from('profiles')
-          .update({ last_login: new Date().toISOString() })
-          .eq('id', supabaseUser.id);
-        
-        dispatch({ type: 'LOGIN_SUCCESS', payload: userData });
-      } catch (supabaseError) {
-        console.error('Supabase login error:', supabaseError);
-        throw new Error('Invalid email or password');
-      }
+      throw new Error('Invalid email or password');
     } catch (error) {
       console.error('Login error:', error);
-      dispatch({ 
-        type: 'LOGIN_FAILURE', 
-        payload: error instanceof Error ? error.message : 'Login failed' 
+      dispatch({
+        type: 'LOGIN_FAILURE',
+        payload: error instanceof Error ? error.message : 'Login failed'
       });
     }
   };
@@ -305,50 +239,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      // If no mock user found, try Supabase (but expect it to fail in demo)
-      try {
-        const { user: supabaseUser } = await signIn(email, password);
-        
-        if (!supabaseUser) {
-          throw new Error('Invalid admin credentials');
-        }
-        
-        // Get user profile from Supabase
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', supabaseUser.id)
-          .single();
-        
-        // Check if user is an admin or staff
-        if (profile?.role !== 'admin' && profile?.role !== 'staff' && 
-            supabaseUser.user_metadata?.role !== 'admin' && supabaseUser.user_metadata?.role !== 'staff') {
-          throw new Error('This account does not have admin privileges');
-        }
-        
-        const userData: User = {
-          id: supabaseUser.id,
-          email: supabaseUser.email || '',
-          name: profile?.name || supabaseUser.user_metadata?.name || 'Admin User',
-          role: profile?.role || supabaseUser.user_metadata?.role || 'admin',
-          phone: profile?.phone || supabaseUser.user_metadata?.phone,
-          address: profile?.address || supabaseUser.user_metadata?.address,
-          createdAt: supabaseUser.created_at || new Date().toISOString(),
-          lastLogin: new Date().toISOString()
-        };
-        
-        // Update last login
-        await supabase
-          .from('profiles')
-          .update({ last_login: new Date().toISOString() })
-          .eq('id', supabaseUser.id);
-        
-        dispatch({ type: 'LOGIN_SUCCESS', payload: userData });
-      } catch (supabaseError) {
-        console.error('Supabase admin login error:', supabaseError);
-        // For demo purposes, show a more helpful error message
-        throw new Error('Demo admin login failed. Please use the demo credentials: admin@yhpecklech.com / admin123');
-      }
+      throw new Error("Invalid admin credentials");
     } catch (error) {
       console.error('Admin login error:', error);
       dispatch({ 
@@ -393,60 +284,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         dispatch({ type: 'REGISTER_SUCCESS', payload: userWithoutPassword });
         return;
       }
+      throw new Error("Email already in use");
 
-      // If user exists in mock or we want to use Supabase, try Supabase registration
-      try {
-        const userData = {
-          name,
-          email,
-          role: 'customer',
-          phone: phone || '',
-          createdAt: new Date().toISOString(),
-          lastLogin: new Date().toISOString()
-        };
-        
-        const { user } = await signUp(email, password, userData);
-        
-        if (!user) {
-          throw new Error('Registration failed');
-        }
-        
-        // Create profile in profiles table
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert([{
-            id: user.id,
-            name,
-            email,
-            role: 'customer',
-            phone: phone || '',
-            created_at: new Date().toISOString(),
-            last_login: new Date().toISOString()
-          }]);
-        
-        if (profileError) {
-          console.error('Error creating profile:', profileError);
-        }
-        
-        const newUser: User = {
-          id: user.id,
-          email: user.email || '',
-          name,
-          role: 'customer',
-          phone: phone || '',
-          createdAt: user.created_at || new Date().toISOString(),
-          lastLogin: new Date().toISOString()
-        };
-        
-        dispatch({ type: 'REGISTER_SUCCESS', payload: newUser });
-      } catch (supabaseError) {
-        console.error('Supabase registration error:', supabaseError);
-        if (existingUser) {
-          throw new Error('Email already in use');
-        } else {
-          throw new Error('Registration failed');
-        }
-      }
     } catch (error) {
       console.error('Registration error:', error);
       dispatch({ 
@@ -457,40 +296,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = async () => {
-    try {
-      // Sign out from Supabase
-      await signOut();
-    } catch (error) {
-      console.error('Error signing out:', error);
-    } finally {
-      // Remove cookies
-      Cookies.remove('user');
-      Cookies.remove('auth_token');
-      
-      dispatch({ type: 'LOGOUT' });
-    }
+    // Remove cookies
+    Cookies.remove('user');
+    Cookies.remove('auth_token');
+    dispatch({ type: 'LOGOUT' });
   };
 
   const updateUser = async (userData: Partial<User>) => {
     if (!state.user) return;
     
     try {
-      // Update user profile in Supabase
-      const { error } = await supabase
-        .from('profiles')
-        .update(userData)
-        .eq('id', state.user.id);
-      
-      if (error) {
-        console.error('Error updating user profile:', error);
-        throw error;
-      }
-      
+      // Update user in mock database
+      const mockUsers = JSON.parse(localStorage.getItem('users') || '[]');
+      const updatedUsers = mockUsers.map((u: any) =>
+        u.id === state.user?.id ? { ...u, ...userData } : u
+      );
+      localStorage.setItem('users', JSON.stringify(updatedUsers));
+
+      // Update user in cookies
+      const updatedUser = { ...state.user, ...userData } as User;
+      Cookies.set('user', JSON.stringify(updatedUser), { expires: 7 });
+
       dispatch({ type: 'UPDATE_USER', payload: userData });
     } catch (error) {
       console.error('Error updating user:', error);
-      
-      // Fallback to mock update for demo purposes
       try {
         // Update user in mock database
         const mockUsers = JSON.parse(localStorage.getItem('users') || '[]');
